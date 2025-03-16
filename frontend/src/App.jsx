@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import './App.css';
+import ReactMarkdown from 'react-markdown';
 
 function App() {
   const [messages, setMessages] = useState([]);
@@ -21,6 +22,28 @@ function App() {
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // Function to ensure main output is formatted as bullet points
+  const formatMainOutput = (text) => {
+    // If the text already has bullet points, return as is
+    if (text.includes('- ')) {
+      return text;
+    }
+    
+    // Otherwise, try to convert paragraphs or sections to bullet points
+    const lines = text.split(/\n+/).filter(line => line.trim() !== '');
+    
+    // Skip headers (lines starting with #)
+    const bulletPoints = lines.map(line => {
+      if (line.startsWith('#')) {
+        return line;
+      } else {
+        return `- ${line}`;
+      }
+    });
+    
+    return bulletPoints.join('\n\n');
+  };
 
   const handleSendMessage = async () => {
     if (inputMessage.trim() === '') return;
@@ -50,10 +73,16 @@ function App() {
       const data = await response.json();
       
       if (data.ok) {
-        // Add AI response to chat
+        // Format main output as bullet points if needed
+        const formattedMainOutput = formatMainOutput(data.answer.main_output);
+        
+        // Add AI response to chat with structured format
         const aiMessage = {
           id: Date.now() + 1,
-          text: data.answer,
+          structured: true,
+          greeting: data.answer.greeting,
+          main_output: formattedMainOutput,
+          summary: data.answer.summary,
           sender: 'ai',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
@@ -121,7 +150,21 @@ function App() {
                 className={`message ${message.sender === 'user' ? 'user-message' : 'ai-message'}`}
               >
                 <div className="message-content">
-                  <span className="message-text">{message.text}</span>
+                  {message.structured ? (
+                    <div className="structured-message">
+                      <div className="greeting">
+                        <ReactMarkdown>{message.greeting}</ReactMarkdown>
+                      </div>
+                      <div className="main-output">
+                        <ReactMarkdown>{message.main_output}</ReactMarkdown>
+                      </div>
+                      <div className="summary">
+                        <strong>Summary:</strong> <ReactMarkdown>{message.summary}</ReactMarkdown>
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="message-text">{message.text}</span>
+                  )}
                   <span className="message-time">{message.timestamp}</span>
                 </div>
               </div>
